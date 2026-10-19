@@ -1,0 +1,84 @@
+name: Build the index
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-index
+  cancel-in-progress: false
+
+jobs:
+  near-tokens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the record
+        uses: actions/checkout@v4
+        with:
+          path: record
+
+      - name: Check out the latest edition
+        uses: actions/checkout@v4
+        with:
+          ref: latest
+          path: latest
+
+      - name: Check out the Svalin code
+        uses: actions/checkout@v4
+        with:
+          repository: noobshole/svalin-agent
+          path: svalin
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: svalin/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: svalin/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: svalin
+        run: |
+          pnpm install --frozen-lockfile --filter "@svalin-agent/api..."
+          pnpm --filter "@svalin-agent/api^..." build
+          echo "SVALIN_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build the edition
+        working-directory: svalin
+        run: pnpm --filter @svalin-agent/api run index:near "$GITHUB_WORKSPACE/latest"
+
+      - name: Verify the edition
+        working-directory: svalin
+        run: pnpm --filter @svalin-agent/api run index:verify "$GITHUB_WORKSPACE/latest"
+
+      - name: Publish the edition
+        working-directory: latest
+        run: |
+          git config user.name "svalin-index"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan next
+          git add -A
+          git commit -q -m "Edition $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q --force origin next:latest
+
+      # Once a day, the edition is copied into editions/ on main and never changed again.
+      - name: Seal the daily edition
+        working-directory: record
+        run: |
+          day=$(date -u +%Y-%m-%d)
+          if [ -d "editions/$day" ]; then exit 0; fi
+          mkdir -p "editions/$day"
+          cp -r ../latest/edition.json ../latest/near-token-index.json ../latest/inputs "editions/$day/"
+          git config user.name "svalin-index"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add editions
+          git commit -q -m "Seal edition $day ($(jq -r .fingerprint "editions/$day/edition.json"))"
+          git push -q
