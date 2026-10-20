@@ -1,6 +1,6 @@
 name: Build the index
 
-# Every hour: grade every Ref-priced NEAR token, verify the edition and publish it to `latest`.
+# Scheduled hourly (GitHub runs it every few hours): grade every Ref-priced NEAR token, verify the edition and publish it to `latest`.
 
 on:
   schedule:

@@ -1,7 +1,7 @@
 # Svalin Index
 
 **Is the price real?** Every NEAR token with a Ref Finance price, graded A to F by the real money
-behind it. Rebuilt every hour.
+behind it. Rebuilt every few hours.
 
 See it at **[svalin.noobshole.workers.dev/ratings](https://svalin.noobshole.workers.dev/ratings)**, or
 read it as JSON from the [Svalin API](https://svalin-api.noobshole.workers.dev/v1/index/near-tokens).
@@ -74,7 +74,7 @@ edition:
 
 ## How it is built
 
-[`.github/workflows/build.yml`](.github/workflows/build.yml) runs every hour. It checks out the
+[`.github/workflows/build.yml`](.github/workflows/build.yml) is scheduled every hour; GitHub runs it every few hours. It checks out the
 [Svalin code](https://github.com/noobshole/svalin-agent), runs
 [`apps/api/scripts/near-index.ts`](https://github.com/noobshole/svalin-agent/blob/main/apps/api/scripts/near-index.ts)
 against Ref Finance, FastNEAR and NearBlocks, verifies the result with
