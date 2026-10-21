@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-10-21T04:46:40.333Z",
+  "methodology": "near-token-backing-v0",
+  "code": {
+    "repository": "https://github.com/noobshole/svalin-agent",
+    "commit": "a61d8ccf898ea2d5f32bedbb65a5f6c565830c34"
+  },
+  "files": {
+    "prices": {
+      "path": "inputs/prices.json.gz",
+      "sha256": "7a24a313787bc2913ba48c61ebe55b0b73979baea8278deb3ac6a8e349ceb4ec"
+    },
+    "pools": {
+      "path": "inputs/pools.json.gz",
+      "sha256": "e11b3e32d25176c4074838a281e80a8047398ec7aa584f5799befca36cd78435"
+    },
+    "index": {
+      "path": "near-token-index.json",
+      "sha256": "6c0ef39d854fd36f79d2e39e0f53b24e72c991ab21e7c8547643f8ad62085c24"
+    }
+  },
+  "fingerprint": "4dfeb6b171962bf28c8a09415f33c6f0d533ecffd74b2e7fc6b33002447354bb"
+}
