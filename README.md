@@ -12,9 +12,14 @@ A quoted price is only a quote. Anyone can send a wallet a token whose price is 
 tool or AI agent that trusts it sees a fortune that cannot be sold.
 
 Svalin grades a token by one question: **how much of a $1,000 sale would be lost to price
-movement?** That depends on the token's **real backing**: the money in its Ref Finance pools held in
-tokens Svalin trusts (NEAR, USDC, USDT and liquid-staked NEAR). Selling a token can never take out
-more than that, and two unvetted tokens paired with each other add nothing.
+movement?** That depends on the token's **real backing**: the money in its Ref Finance pools, classic
+and concentrated liquidity, held in tokens Svalin trusts (NEAR, USDC, USDT and liquid-staked NEAR).
+Selling a token can never take out more than that, and two unvetted tokens paired with each other
+add nothing.
+
+Backing has to **hold for 24 hours** before it counts, and a token is graded on its lowest backing in
+that time. A pool added this morning cannot lift a grade today, and a pool pulled for an hour still
+lowers it.
 
 | Grade | Real backing | A $1,000 sale loses |
 | --- | --- | --- |
@@ -25,13 +30,14 @@ more than that, and two unvetted tokens paired with each other add nothing.
 | F | under $3K | 25% or more |
 
 Grades describe how sellable a token is, not whether its project is good. They are not financial
-advice. The trusted tokens are the yardstick and are not graded. Only Ref Finance's classic pools
-are counted so far.
+advice. The trusted tokens are the yardstick and are not graded. Only Ref Finance pools are counted
+so far. Editions from 22 October 2026 use methodology `near-token-backing-v1`; earlier ones are
+`near-token-backing-v0` (classic pools only, no 24-hour hold) and still verify with current code.
 
 ## Don't trust it, verify it
 
-Every grade can be recomputed by anyone. Each edition archives the exact Ref Finance responses it
-was computed from and records their SHA-256 hashes, the hash of the index file, and the Svalin code
+Every grade can be recomputed by anyone. Each edition archives the exact Ref Finance data it was
+computed from, and the backing history the 24-hour rule was applied from, and records their SHA-256 hashes, the hash of the index file, and the Svalin code
 commit. Its **fingerprint**, the hash of that record, changes if a single grade, input or date is
 changed. Once a day the edition is sealed into [`editions/`](editions), which is never rewritten.
 
@@ -62,12 +68,18 @@ edition:
   ```
 
   `marketCapUsd` is the quoted price times total supply. `top10Pct` is the share of supply held by
-  the ten largest holders outside exchange pools, bridges and NEAR Intents. `holders` comes from
+  the ten largest holders outside exchange pools, bridges, NEAR Intents and burn addresses. `holders` comes from
   NearBlocks. All three are `null` for tokens without backing, except the market cap of the
   highest-priced ones.
 - `edition.json`: the sealed record: hashes of the inputs and the index, the code commit and the
   fingerprint.
 - `inputs/prices.json.gz` and `inputs/pools.json.gz`: the exact Ref Finance responses.
+- `inputs/dcl-pools.json.gz`: every concentrated-liquidity pool on `dclv2.ref-labs.near`, with the
+  fields the grades use.
+- `inputs/history.json.gz`: each token's backing over the last 24 hours, which the grades are
+  taken from.
+- `near-dcl-depth.json`: the backing each token gets from concentrated-liquidity pools, which the
+  Svalin API adds when valuing wallets.
 - `near-token-stats.json`: total supply and holder data, refreshed about once a day per token.
 
 `editions/<day>/` on `main` holds each day's sealed edition with the same files.
