@@ -24,14 +24,14 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out the latest edition
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: latest
           path: latest
           persist-credentials: false
 
       - name: Check out the Svalin code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: noobshole/svalin-agent
           path: svalin
@@ -78,12 +78,12 @@ jobs:
       contents: write
     steps:
       - name: Check out the record
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: record
 
       - name: Check out the latest branch
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: latest
           path: latest
