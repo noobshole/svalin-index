@@ -82,6 +82,9 @@ against Ref Finance, FastNEAR and NearBlocks, verifies the result with
 and publishes it to `latest`. The grading code is open and deterministic: the same inputs always
 give the same grades.
 
+The workflow has two jobs. The one that runs code can only read; a second job with write access
+only copies the verified edition and pushes it. Third-party actions are pinned to exact commits.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE). Please credit Svalin when you use the data.
