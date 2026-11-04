@@ -89,8 +89,14 @@ edition:
   Svalin API adds when valuing wallets.
 - `near-token-stats.json`: total supply, holder data and token metadata, refreshed a few tokens per
   run: those graded D or better about daily, the rest over about ten days.
+- `near-token-tree.bin`: the edition's Merkle tree, every level from the leaves up, 32 bytes a node.
+  The leaf for a token is `svalin-index/1|<day>|<token>|<grade>|<backing_usd>`. Svalin's API serves
+  proofs from it (`/v1/proof/{token}`).
+- `near-token-root.json`: the tree's root and the edition's fingerprint, as published on NEAR.
 
-`editions/<day>/` on `main` holds each day's sealed edition with the same files.
+`editions/<day>/` on `main` holds each day's sealed edition: `edition.json`, the index and its
+inputs, and from 5 November 2026 the tree and root. The roots of earlier editions were put on NEAR
+from those sealed files.
 
 ## How it is built
 
@@ -102,8 +108,13 @@ against Ref Finance, FastNEAR and NearBlocks, verifies the result with
 and publishes it to `latest`. The grading code is open and deterministic: the same inputs always
 give the same grades.
 
-The workflow has two jobs. The one that runs code can only read; a second job with write access
-only copies the verified edition and pushes it. Third-party actions are pinned to exact commits.
+The job that runs code can only read; a second job with write access only copies the verified
+edition and pushes it. When a day's edition is sealed, a third job puts its root on NEAR, in the
+Svalin Ratings registry `svalin-ratings-v1.testnet`
+([`register-root.ts`](https://github.com/noobshole/svalin-agent/blob/main/apps/api/scripts/register-root.ts)).
+It signs with a key that can call nothing but the registry's `publish`, and has no write access to
+this repository. A new root can be checked against the sealed files during the registry's 1-hour
+challenge window, and retracted if it is wrong. Third-party actions are pinned to exact commits.
 
 ## License
 
