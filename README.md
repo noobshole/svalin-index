@@ -53,24 +53,31 @@ pnpm --filter @svalin-agent/api run index:verify ../../svalin-index
 
 For a sealed edition, point the last command at `../../svalin-index/editions/<day>` on `main`
 instead. It prints `Verified` when every hash matches and all grades are reproduced; otherwise it
-lists what differs. Market cap and holder data come from FastNEAR and NearBlocks, so they are pinned
-by the index hash but not recomputed.
+lists what differs. Market cap, holder data, symbols read from token metadata and `notes` come from
+FastNEAR and NearBlocks, so they are pinned by the index hash but not recomputed.
 
 ## Files
 
 The [`latest`](https://github.com/noobshole/svalin-index/tree/latest) branch holds the current
 edition:
 
-- `near-token-index.json`: `generatedAt`, `methodology`, grade `counts`, and `rows`, one per token:
+- `near-token-index.json`: `generatedAt`, `methodology`, grade `counts`, `rows`, one per token, and
+  from 4 November 2026 `notes`:
 
   ```text
   [contract, symbol, priceUsd, backingUsd, grade, marketCapUsd, top10Pct, holders]
   ```
 
+  `symbol` is Ref Finance's, or the token's own (`ft_metadata`) when Ref has none.
   `marketCapUsd` is the quoted price times total supply. `top10Pct` is the share of supply held by
-  the ten largest holders outside exchange pools, bridges, NEAR Intents and burn addresses. `holders` comes from
-  NearBlocks. All three are `null` for tokens without backing, except the market cap of the
-  highest-priced ones.
+  the ten largest holders outside exchange pools, bridges, NEAR Intents and burn addresses.
+  `holders` comes from NearBlocks, or is a lower bound from FastNEAR's list of the largest holders
+  where NearBlocks has no count. All three are `null` for tokens without backing, except the market
+  cap of the highest-priced ones. Before 4 November 2026 a `holders` of 0 means unknown.
+
+  `notes` maps a contract to what a row cannot say: `holdersAtLeast` (the count is a lower bound),
+  and `selfDeclaredTest` with the token's on-chain `name` when that name says it is a test or not to
+  be bought. Neither changes a grade.
 - `edition.json`: the sealed record: hashes of the inputs and the index, the code commit and the
   fingerprint.
 - `inputs/prices.json.gz` and `inputs/pools.json.gz`: the exact Ref Finance responses.
@@ -80,7 +87,8 @@ edition:
   taken from.
 - `near-dcl-depth.json`: the backing each token gets from concentrated-liquidity pools, which the
   Svalin API adds when valuing wallets.
-- `near-token-stats.json`: total supply and holder data, refreshed about once a day per token.
+- `near-token-stats.json`: total supply, holder data and token metadata, refreshed a few tokens per
+  run: those graded D or better about daily, the rest over about ten days.
 
 `editions/<day>/` on `main` holds each day's sealed edition with the same files.
 
