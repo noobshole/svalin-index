@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-11-22T03:13:49.673Z",
+  "methodology": "near-token-backing-v1",
+  "code": {
+    "repository": "https://github.com/noobshole/svalin-agent",
+    "commit": "bc662a83f9902e894e9910a9462f504aa93c6820"
+  },
+  "files": {
+    "prices": {
+      "path": "inputs/prices.json.gz",
+      "sha256": "25ed460713146323ec6beebecc1ab4b6525ddf9ce0d22a6feab64ed94ff4a00e"
+    },
+    "pools": {
+      "path": "inputs/pools.json.gz",
+      "sha256": "57da38054fa307fa8e5faa8fc4c0e5fa09f12fa7fb2e1e29dcda1612183de82c"
+    },
+    "index": {
+      "path": "near-token-index.json",
+      "sha256": "b33fa23c28868c1d7a4a8bc874189c17eab3cfd6cbe0654286273888e8fa9042"
+    },
+    "dclPools": {
+      "path": "inputs/dcl-pools.json.gz",
+      "sha256": "34477cc8d1e87952667d9f2f9238f0fa1b7572ea73b5fae4fcf146bb2a527a93"
+    },
+    "history": {
+      "path": "inputs/history.json.gz",
+      "sha256": "47cfde72eeefbb68a66c768be795be3078467dc61c6f9997022f3a41b5a514a0"
+    }
+  },
+  "fingerprint": "b2fe92ca2ec8342789e9472d32b6ab089aa6c940eb16b77d0c954beaa22caf34"
+}
