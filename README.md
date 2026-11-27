@@ -1,7 +1,8 @@
 # Svalin Index
 
-**Is the price real?** Every NEAR token with a Ref Finance price, graded A to F by the real money
-behind it. Rebuilt every few hours.
+**Is the price real?** Every NEAR token with a Rhea Finance price, NEAR and USDC included, graded A
+to F by the real money behind it, with 30 days of price and backing per token. Rebuilt every few
+hours.
 
 See it at **[svalin.noobshole.workers.dev/ratings](https://svalin.noobshole.workers.dev/ratings)**, or
 read it as JSON from the [Svalin API](https://svalin-api.noobshole.workers.dev/v1/index/near-tokens).
@@ -12,8 +13,9 @@ A quoted price is only a quote. Anyone can send a wallet a token whose price is 
 tool or AI agent that trusts it sees a fortune that cannot be sold.
 
 Svalin grades a token by one question: **how much of a $1,000 sale would be lost to price
-movement?** That depends on the token's **real backing**: the money in its Ref Finance pools, classic
-and concentrated liquidity, held in tokens Svalin trusts (NEAR, USDC, USDT and liquid-staked NEAR).
+movement?** That depends on the token's **real backing**: the money in its Rhea Finance pools,
+classic and concentrated liquidity, held in tokens Svalin trusts, such as NEAR, USDC, USDT and
+liquid-staked NEAR.
 Selling a token can never take out more than that, and two unvetted tokens paired with each other
 add nothing.
 
@@ -26,18 +28,20 @@ lowers it.
 | A | $1M or more | under 0.1% |
 | B | $100K or more | under 1% |
 | C | $20K or more | under 5% |
-| D | $3K or more | under 25% |
-| F | under $3K | 25% or more |
+| D | $3K or more | 25% or less |
+| F | under $3K | more than 25% |
 
 Grades describe how sellable a token is, not whether its project is good. They are not financial
-advice. The trusted tokens are the yardstick and are not graded. Only Ref Finance pools are counted
-so far. Editions from 22 October 2026 use methodology `near-token-backing-v1`; earlier ones are
-`near-token-backing-v0` (classic pools only, no 24-hour hold) and still verify with current code.
+advice. Since 26 November 2026 the trusted tokens are graded too, on the other trusted tokens in
+their pools and never on themselves. Only Rhea Finance pools are counted so far. Editions from
+22 October 2026 use methodology `near-token-backing-v1`; earlier ones are `near-token-backing-v0`
+(classic pools only, no 24-hour hold) and still verify with current code.
 
 ## Don't trust it, verify it
 
-Every grade can be recomputed by anyone. Each edition archives the exact Ref Finance data it was
-computed from, and the backing history the 24-hour rule was applied from, and records their SHA-256 hashes, the hash of the index file, and the Svalin code
+Every grade can be recomputed by anyone. Each edition archives the exact Rhea Finance data it was
+computed from (Ref Finance's before 26 November 2026) and the backing history the 24-hour rule was
+applied from, and records their SHA-256 hashes, the hash of the index file and the Svalin code
 commit. Its **fingerprint**, the hash of that record, changes if a single grade, input or date is
 changed. Once a day the edition is sealed into [`editions/`](editions), which is never rewritten.
 
@@ -68,7 +72,7 @@ edition:
   [contract, symbol, priceUsd, backingUsd, grade, marketCapUsd, top10Pct, holders]
   ```
 
-  `symbol` is Ref Finance's, or the token's own (`ft_metadata`) when Ref has none.
+  `symbol` is Rhea Finance's, or the token's own (`ft_metadata`) when Rhea has none.
   `marketCapUsd` is the quoted price times total supply. `top10Pct` is the share of supply held by
   the ten largest holders outside exchange pools, bridges, NEAR Intents and burn addresses.
   `holders` comes from NearBlocks, or is a lower bound from FastNEAR's list of the largest holders
@@ -80,7 +84,8 @@ edition:
   be bought. Neither changes a grade.
 - `edition.json`: the sealed record: hashes of the inputs and the index, the code commit and the
   fingerprint.
-- `inputs/prices.json.gz` and `inputs/pools.json.gz`: the exact Ref Finance responses.
+- `inputs/prices.json.gz` and `inputs/pools.json.gz`: the exact Rhea Finance responses (Ref
+  Finance's indexer before 26 November 2026).
 - `inputs/dcl-pools.json.gz`: every concentrated-liquidity pool on `dclv2.ref-labs.near`, with the
   fields the grades use.
 - `inputs/history.json.gz`: each token's backing over the last 24 hours, which the grades are
@@ -89,6 +94,9 @@ edition:
   Svalin API adds when valuing wallets.
 - `near-token-stats.json`: total supply, holder data and token metadata, refreshed a few tokens per
   run: those graded D or better about daily, the rest over about ten days.
+- `near-token-daily.json`: one point a day per token for the last 30 days, its quoted price and the
+  backing its grade used, which the ratings page draws as charts. It is built from the editions,
+  is not part of the sealed edition and changes no grade.
 - `near-token-tree.bin`: the edition's Merkle tree, every level from the leaves up, 32 bytes a node.
   The leaf for a token is `svalin-index/1|<day>|<token>|<grade>|<backing_usd>`. Svalin's API serves
   proofs from it (`/v1/proof/{token}`).
@@ -103,7 +111,7 @@ from those sealed files.
 [`.github/workflows/build.yml`](.github/workflows/build.yml) is scheduled every hour; GitHub runs it every few hours. It checks out the
 [Svalin code](https://github.com/noobshole/svalin-agent), runs
 [`apps/api/scripts/near-index.ts`](https://github.com/noobshole/svalin-agent/blob/main/apps/api/scripts/near-index.ts)
-against Ref Finance, FastNEAR and NearBlocks, verifies the result with
+against Rhea Finance, FastNEAR and NearBlocks, verifies the result with
 [`verify-index.ts`](https://github.com/noobshole/svalin-agent/blob/main/apps/api/scripts/verify-index.ts),
 and publishes it to `latest`. The grading code is open and deterministic: the same inputs always
 give the same grades.
@@ -114,7 +122,8 @@ Svalin Ratings registry `svalin-ratings-v1.testnet`
 ([`register-root.ts`](https://github.com/noobshole/svalin-agent/blob/main/apps/api/scripts/register-root.ts)).
 It signs with a key that can call nothing but the registry's `publish`, and has no write access to
 this repository. A new root can be checked against the sealed files during the registry's 1-hour
-challenge window, and retracted if it is wrong. Third-party actions are pinned to exact commits.
+challenge window, and retracted if it is wrong. That job installs its packages with their install
+scripts off and builds nothing. Third-party actions are pinned to exact commits.
 
 ## License
 
