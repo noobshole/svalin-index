@@ -1,6 +1,6 @@
 name: Build the index
 
-# Scheduled hourly (GitHub runs it every few hours): grade every Ref-priced NEAR token, verify the edition and publish it to `latest`.
+# Scheduled hourly (GitHub runs it every few hours): grade every Rhea-priced NEAR token, verify the edition and publish it to `latest`.
 #
 # The job that runs third-party code never holds a write token: `build` reads only and hands the
 # edition over as an artifact; `publish` writes but only copies files and runs git. Once a day,
@@ -167,11 +167,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: svalin/pnpm-lock.yaml
 
+      # The publishing script uses only tsx and @near-js, so this job runs no install scripts and
+      # builds nothing: no dependency can run code at install time and leave something behind for
+      # the step that holds the publishing key.
       - name: Install
         working-directory: svalin
-        run: |
-          pnpm install --frozen-lockfile --filter "@svalin-agent/api..."
-          pnpm --filter "@svalin-agent/api^..." build
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@svalin-agent/api..."
 
       - name: Receive the edition
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
