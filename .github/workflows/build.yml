@@ -7,6 +7,10 @@ name: Build the index
 # `register` puts the sealed edition's Merkle root on NEAR (the Svalin Ratings registry) with a key
 # that can call nothing but `publish` there; it has no write access to this repository.
 # Third-party actions are pinned to commit SHAs so a moved tag cannot change what runs.
+#
+# The v2 trial (near-token-backing-v2) runs beside v1 from 1 December 2026 in `build-v2` and
+# `publish-v2`, split the same way, and publishes to `latest-v2` and `editions-v2/`. It never holds
+# up v1: `publish` and `register` do not wait for it, and nothing of v2 is put on NEAR.
 
 on:
   schedule:
@@ -139,6 +143,170 @@ jobs:
             fi
             echo "The push failed (try $try of 3)."
             if [ "$try" -lt 3 ]; then sleep 20; fi
+          done
+          exit 1
+
+  # The trial starts on 1 December 2026 (UTC). Before then `build-v2`, and so `publish-v2`, are skipped.
+  trial-started:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      started: ${{ steps.date.outputs.started }}
+    steps:
+      - name: Check the trial's start date
+        id: date
+        run: |
+          if [[ "$(date -u +%Y-%m-%d)" < "2026-12-01" ]]; then
+            echo "The v2 trial starts on 1 December 2026 (UTC)."
+            echo "started=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "started=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # v2 reads every Rhea pool from NEAR at one block, says why each grade changed, and asks NEAR
+  # Intents for quotes beside the grades. It reuses v1's market data, so it adds no holder lookups.
+  build-v2:
+    needs: [build, trial-started]
+    if: needs.trial-started.outputs.started == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # The branch does not exist before the trial's first run. Any other failure stops the job, so
+      # a network error can never restart the trial's history from nothing.
+      - name: Check out the latest trial edition
+        run: |
+          url="https://github.com/${GITHUB_REPOSITORY}"
+          if git ls-remote --exit-code --heads "$url" latest-v2 > /dev/null; then
+            git clone --quiet --depth 1 --branch latest-v2 "$url" latest-v2
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
+            echo "No trial edition yet: this is the trial's first run."
+            mkdir latest-v2
+          fi
+
+      - name: Check out the Svalin code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: noobshole/svalin-agent
+          path: svalin
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: svalin/package.json
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: svalin/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: svalin
+        run: |
+          pnpm install --frozen-lockfile --filter "@svalin-agent/api..."
+          pnpm --filter "@svalin-agent/api^..." build
+          echo "SVALIN_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Receive v1's edition
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: edition
+          path: v1
+
+      - name: Build the trial edition
+        working-directory: svalin
+        env:
+          NEAR_INDEX_METHODOLOGY: near-token-backing-v2
+          NEAR_INDEX_SEALED_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/editions-v2
+          NEAR_INDEX_PREVIOUS_METHOD_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/editions
+          NEAR_INDEX_SEED_FROM: ${{ github.workspace }}/v1
+          INDEX_SUPPLY_BUDGET: "0"
+          INDEX_TOP_HOLDERS_BUDGET: "0"
+          INDEX_HOLDER_COUNT_BUDGET: "0"
+          INDEX_METADATA_BUDGET: "0"
+        run: |
+          cp "$GITHUB_WORKSPACE/v1/near-token-stats.json" "$GITHUB_WORKSPACE/latest-v2/"
+          pnpm --filter @svalin-agent/api run index:near "$GITHUB_WORKSPACE/latest-v2"
+
+      - name: Verify the trial edition
+        working-directory: svalin
+        run: pnpm --filter @svalin-agent/api run index:verify "$GITHUB_WORKSPACE/latest-v2"
+
+      - name: Compare it with v1
+        working-directory: svalin
+        run: pnpm --filter @svalin-agent/api run index:compare "$GITHUB_WORKSPACE/v1" "$GITHUB_WORKSPACE/latest-v2"
+
+      - name: Hand over the trial edition
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: edition-v2
+          path: latest-v2
+          retention-days: 1
+          if-no-files-found: error
+
+  # After `publish`, so both seal steps push to main one after the other.
+  publish-v2:
+    needs: [publish, build-v2]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the record
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: record
+
+      - name: Receive the trial edition
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: edition-v2
+          path: edition
+
+      - name: Publish the trial edition
+        working-directory: record
+        run: |
+          test -f ../edition/edition.json
+          git config user.name "svalin-index"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git worktree add -q --detach ../latest-v2
+          cd ../latest-v2
+          git checkout -q --orphan next-v2
+          git rm -rq --cached .
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -r ../edition/. .
+          git add -A
+          git commit -q -m "Trial edition $(date -u +%Y-%m-%dT%H:%MZ)"
+          for try in 1 2 3; do
+            git push -q --force origin next-v2:latest-v2 && exit 0
+            echo "The push failed (try $try of 3)."
+            if [ "$try" -lt 3 ]; then sleep 20; fi
+          done
+          exit 1
+
+      # Once a day, like v1: the trial edition is copied into editions-v2/ on main and never changed
+      # again. The Intents quotes and the comparison with v1 are kept beside it as a record; they are
+      # not part of its fingerprint.
+      - name: Seal the daily trial edition
+        working-directory: record
+        run: |
+          day=$(jq -r '.generatedAt[0:10]' ../edition/edition.json)
+          if [ -d "editions-v2/$day" ]; then exit 0; fi
+          mkdir -p "editions-v2/$day"
+          cp -r ../edition/edition.json ../edition/near-token-index.json ../edition/near-token-tree.bin ../edition/near-token-root.json ../edition/inputs "editions-v2/$day/"
+          for record in near-intents-quotes.json near-methodology-trial.json; do
+            if [ -f "../edition/$record" ]; then cp "../edition/$record" "editions-v2/$day/"; fi
+          done
+          git config user.name "svalin-index"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add editions-v2
+          git commit -q -m "Seal trial edition $day ($(jq -r .fingerprint "editions-v2/$day/edition.json"))"
+          for try in 1 2 3; do
+            git push -q && exit 0
+            echo "The push failed (try $try of 3)."
+            if [ "$try" -lt 3 ]; then sleep 20; git pull -q --rebase; fi
           done
           exit 1
 
