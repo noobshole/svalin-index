@@ -106,6 +106,44 @@ edition:
 inputs, and from 5 November 2026 the tree and root. The roots of earlier editions were put on NEAR
 from those sealed files.
 
+## The v2 trial
+
+Methodology `near-token-backing-v2` runs beside v1 as a trial from 1 December 2026 (UTC). v1 stays
+the published grade, and the only one put on NEAR, until v2 replaces it. v2 keeps v1's grade bands, trusted tokens, prices
+and 24-hour hold, and changes three things:
+
+- **Every Rhea pool, read from NEAR at one block.** v2 reads all of the pools on
+  `v2.ref-finance.near` and `dclv2.ref-labs.near` at one final block (9,024 classic pools on
+  27 November 2026, against the 3,175 in Rhea's list), and records the block in `edition.json`.
+- **Why each grade changed.** `changes` in the index file lists every grade that changed since the
+  latest sealed edition before that day, with one reason: `price` (mostly NEAR's price moved),
+  `money-out`, `money-in`, `price-and-money`, or `method`. `inputs/backing-detail.json.gz` keeps
+  the trusted tokens behind every point of the backing history, so the reason is exact even inside
+  the 24-hour hold. Where it does not reach back far enough (the trial's first days), the reason is
+  marked `estimated`.
+- **A second opinion.** `near-intents-quotes.json` gives what NEAR Intents would pay in USDC for
+  $1,000 of each token it lists (dry quotes: nothing is signed or sent), flagged when that is two
+  grade bands or more from ours. It is not part of the grade or of the sealed edition.
+
+The trial is published on the
+[`latest-v2`](https://github.com/noobshole/svalin-index/tree/latest-v2) branch, with the same files
+as `latest` plus the Intents quotes, the backing detail and `near-methodology-trial.json`, which
+compares each run's v1 and v2 grades. Each day's trial edition is sealed into `editions-v2/<day>/`
+on `main`. The Svalin API serves it at `/v1/index/near-tokens?methodology=near-token-backing-v2`.
+Verifying a v2 edition can
+also recompute its reasons from the sealed edition they are measured from (the day in
+`changes.since`, under `editions/` on the trial's first day), and read its pools again from a NEAR
+archive node at the recorded block:
+
+```bash
+git clone --branch latest-v2 https://github.com/noobshole/svalin-index ../svalin-index-v2
+git clone https://github.com/noobshole/svalin-index ../svalin-index-record
+pnpm --filter @svalin-agent/api run index:verify ../../svalin-index-v2 --previous ../../svalin-index-record/editions-v2/<day> --chain
+```
+
+The method is in
+[RISK_METHODOLOGY.md](https://github.com/noobshole/svalin-agent/blob/main/docs/RISK_METHODOLOGY.md#the-v2-trial-near-token-backing-v2).
+
 ## How it is built
 
 [`.github/workflows/build.yml`](.github/workflows/build.yml) is scheduled every hour; GitHub runs it every few hours. It checks out the
@@ -123,7 +161,9 @@ Svalin Ratings registry `svalin-ratings-v1.testnet`
 It signs with a key that can call nothing but the registry's `publish`, and has no write access to
 this repository. A new root can be checked against the sealed files during the registry's 1-hour
 challenge window, and retracted if it is wrong. That job installs its packages with their install
-scripts off and builds nothing. Third-party actions are pinned to exact commits.
+scripts off and builds nothing. Third-party actions are pinned to exact commits. The v2 trial is
+built and published by two more jobs, split the same way. v1 never waits for them, and nothing of
+v2 is put on NEAR.
 
 ## License
 
